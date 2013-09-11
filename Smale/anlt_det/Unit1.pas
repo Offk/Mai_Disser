@@ -46,7 +46,7 @@ const
 
   sysN=4;
   eps=0.001;
-  VeryBigNumber=10;
+  VeryBigNumber=10000;
 type
   vector = array[1..sysN] of double;
   vectArr = array[1..sysN] of vector;
@@ -275,10 +275,15 @@ end;
 
 
 function per_circle(x:vector):vector;
-var module_b:double;
+var module_a,module_b:double;
     runaway:boolean;
 begin
   runaway:=false;
+  x[3]:=0;
+  x[4]:=0;
+  module_a:=sqrt(x[1]*x[1]+x[2]*x[2]);
+  x[1]:=x[1]/module_a;
+  x[2]:=x[2]/module_a;
 
   depth_cross(R1,alf1,bet1,x,runaway);
   if runaway then
@@ -286,11 +291,12 @@ begin
       result:=RunawayVector();
       exit;
     end;
-  x[1]:=ReD; x[2]:=ImD;
+  x[1]:=ReD;
+  x[2]:=ImD;
 
   module_b:=sqrt(x[3]*x[3]+x[4]*x[4]);
-  if module_b<0.00001 then
-    module_b:=0.00001;
+  //if module_b<0.00001 then
+  //  module_b:=0.00001;
   x[3]:=x[3]/module_b;
   x[4]:=x[4]/module_b;
 
@@ -300,12 +306,14 @@ begin
       result:=RunawayVector();
       exit;
     end;
-  x[1]:=x[1]+ReC; x[2]:=x[2]+ImC;
-
+  x[1]:=x[1]+ReC;
+  x[2]:=x[2]+ImC;
+  //x[3]:=0;
+  //x[4]:=0;
   result:=x;
 end;
 
-procedure SetPixel(x,y:double);
+procedure SetPixel_PhaseProtret(x,y:double);
 var i,j:integer;
 begin
   i:=round(PixSizeA*(x-ReAmin)/(ReAmax-ReAmin));
@@ -316,36 +324,38 @@ begin
   end;
 end;
 
-procedure Iterate(x0:vector);
+function Iterate(x0:vector):vector;
 const
   PredCicleNum=1000;
-  CicleNum=100;
+  CicleNum=10000;
 var i:integer;
     x:vector;
-    Ia,Jb:integer;
 begin
   x:=x0;
-
+  {
   for i:=0 to PredCicleNum do
   begin
     x:=per_circle(x);
     if x[1]=999 then
       exit;
   end;
-
+  }
   for i:=0 to CicleNum do
   begin
     x:=per_circle(x);
     if x[1]=999 then
       exit;
-    SetPixel(x[1],x[2]);
+    SetPixel_PhaseProtret(x[3],x[2]);
+        form1.KDRImage.Canvas.CopyRect(Rect(0,0,PixSizeA,PixSizeB),KDR.canvas,Rect(0,0,PixSizeA,PixSizeB));
+        application.ProcessMessages;
   end;
 
+  result:=x;
 
 end;
 
 procedure TForm1.Button1Click(Sender: TObject);
-var x0:vector;
+var x:vector;
     i:integer;
 begin
   KDR:=TBitmap.Create;
@@ -353,17 +363,20 @@ begin
   KDR.Height:=PixSizeB;
   with KDR.Canvas do
     begin
-      for i:=1 to 100 do
+
+
+      for i:=1 to 1 do
       begin
-        x0[1]:=-1.5+Random*3.0;
-        x0[2]:=-1.5+Random*3.0;
-        x0[3]:=-1.5+Random*3.0;
-        x0[4]:=-1.5+Random*3.0;
-        Iterate(x0);
+        x[1]:=-1.5+Random*3.0;
+        x[2]:=-1.5+Random*3.0;
+        x[3]:=-1.5+Random*3.0;
+        x[4]:=-1.5+Random*3.0;
+
+        x:=Iterate(x);
+
       end;
     end;
-  form1.KDRImage.Canvas.CopyRect(Rect(0,0,PixSizeA,PixSizeB),KDR.canvas,Rect(0,0,PixSizeA,PixSizeB));
-  application.ProcessMessages;
+
   DateSeparator:= '-';
   TimeSeparator:= '_';
   KDR.SaveToFile(DateTimeToStr(Now)+'.bmp');

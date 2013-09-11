@@ -1,0 +1,357 @@
+unit Unit1;
+
+interface
+
+uses
+  Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
+  Dialogs, StdCtrls, ExtCtrls;
+
+type
+  TForm1 = class(TForm)
+    Button1: TButton;
+    KDRImage: TImage;
+    procedure Button1Click(Sender: TObject);
+    procedure FormClose(Sender: TObject; var Action: TCloseAction);
+
+  private
+    { Private declarations }
+  public
+    { Public declarations }
+  end;
+
+
+var
+  Form1: TForm1;
+  KDR,Lyap: TBitmap;
+
+
+const
+  ReCmin=-3.0;
+  ReCmax=-1.0;
+  ImCmin=-1.0;
+  ImCmax=1.0;
+  PixSizeA=300;
+  PixSizeB=300;
+  delReC=(ReCmax-ReCmin)/(PixSizeA);
+  delImC=(ImCmax-ImCmin)/(PixSizeB);
+  {alf1=0.05;
+  bet1=1;
+  alf2=1;
+  bet2=0.1;}
+  alf1=0.01;
+  bet1=1;
+  alf2=1;
+  bet2=0.01;
+  R1=1;
+  R2=1;
+  ReD=3;
+  ImD=0;
+  sysN=4;
+  eps=0.001;
+  VeryBigNumber=10;
+type
+  vector = array[1..sysN] of double;
+  vectArr = array[1..sysN] of vector;
+implementation
+
+{$R *.dfm}
+
+function f(x:vector; alf,bet:double):vector;
+begin
+  f[1]:=alf*(x[1]*x[4]-x[2]*x[3]);
+  f[2]:=-alf*(x[1]*x[3]+x[2]*x[4]);
+  f[3]:=bet*(2*x[1]*x[2]);
+  f[4]:=-bet*(x[1]*x[1]-x[2]*x[2]);
+end;
+
+function df(x:vector; dx:vector; alf,bet:double):vector;
+begin
+  df[1]:=alf*(x[1]*dx[4]+dx[1]*x[4]-x[2]*dx[3]-dx[2]*x[3]);
+  df[2]:=-alf*(x[1]*dx[3]+dx[1]*x[3]+x[2]*dx[4]+dx[2]*x[4]);
+  df[3]:=bet*(2*x[1]*dx[2]+2*dx[1]*x[2]);
+  df[4]:=-bet*(x[1]*dx[1]+dx[1]*x[1]-x[2]*dx[2]-dx[2]*x[2]);
+end;
+
+function f_runge(x:vector; R:double; alf,bet:double):vector;
+var
+  h:double;
+  t,x1,x2,x3,x4,res:vector;
+  k:integer;
+begin
+
+  h:=R/100;
+
+  x1:=f(x,alf,bet);
+
+  for k:=1 to sysN do
+    t[k]:=x[k]+h*x1[k]/2;
+
+  x2:=f(t,alf,bet);
+
+  for k:=1 to sysN do
+    t[k]:=x[k]+h*x2[k]/2;
+
+  x3:=f(t,alf,bet);
+
+  for k:=1 to sysN do
+    t[k]:=x[k]+h*x3[k];
+
+  x4:=f(t,alf,bet);
+
+  for k:=1 to sysN do
+    res[k]:=x[k]+h*(x1[k]+2*x2[k]+2*x3[k]+x4[k])/6;
+
+  result:=res;
+end;
+
+function df_runge(x:vector; dx:vector; R:double; alf,bet:double):vector;
+var
+  h:double;
+  t,x1,x2,x3,x4,res:vector;
+  k:integer;
+begin
+
+  h:=R/100;
+
+  x1:=df(x,dx,alf,bet);
+
+  for k:=1 to sysN do
+    t[k]:=dx[k]+h*x1[k]/2;
+
+  x2:=df(x,t,alf,bet);
+
+  for k:=1 to sysN do
+    t[k]:=dx[k]+h*x2[k]/2;
+
+  x3:=df(x,t,alf,bet);
+
+  for k:=1 to sysN do
+    t[k]:=dx[k]+h*x3[k];
+
+  x4:=df(x,t,alf,bet);
+
+  for k:=1 to sysN do
+    res[k]:=dx[k]+h*(x1[k]+2*x2[k]+2*x3[k]+x4[k])/6;
+
+  result:=res;
+end;
+
+function matrEvol(x:vector; dx:vectArr; R:double; alf,bet:double):vectArr;
+var res:vectArr;
+    k: integer;
+begin
+  for k:=1 to sysN do
+    res[k]:=df_runge(x,dx[k],R,alf,bet);
+  result:=res;
+end;
+
+function length(x:vector):double;
+var res:double;
+    k:integer;
+begin
+  res:=0;
+  for k:=1 to sysN do
+    res:=res+x[k]*x[k];
+  result:=sqrt(res);
+end;
+
+function vectArr_length(x:vectarr):double;
+var res:double;
+    k:integer;
+begin
+  res:=0;
+  for k:=1 to sysN do
+    res:=res+length(x[k]);
+  result:=sqrt(res);
+end;
+
+function max(x,y:double):double;
+begin
+  if (x>y)
+    then
+      max:=x
+    else
+      max:=y;
+end;
+
+function mult(x:vector; a:double):vector;
+var res:vector;
+    k:integer;
+begin
+  for k:=1 to sysN do
+    res[k]:=res[k]*a;
+  result:=res;
+end;
+
+function plus(x,y:vector):vector;
+var res:vector;
+    k:integer;
+begin
+  for k:=1 to sysN do
+    res[k]:=x[k]+y[k];
+  result:=res;
+end;
+
+function NullVector():vector;
+var k:integer;
+    res:vector;
+begin
+  for k:=1 to sysN do
+    res[k]:=0;
+  result:=res;
+end;
+
+function norm(x:vector):vector;
+var res:vector;
+begin
+  if length(x)>0.0001
+    then
+      res:=mult(x,1/length(x))
+    else
+      begin
+        res:=NullVector();
+      end;
+  result:=res;
+end;
+
+function scal(x,y:vector):double;
+var k:integer;
+    res:double;
+begin
+  res:=0;
+  for k:=1 to sysN do
+    res:=res+x[k]*y[k];
+  result:=res;
+end;
+
+function ElementaryPertuberation():vectArr;
+var res:vectArr;
+    k: integer;
+begin
+  for k:=1 to sysN do
+    res[k]:=NullVector();
+  for k:=1 to sysN do
+    res[k][k]:=1;
+  result:=res;
+end;
+
+procedure ortogonalization(dx:vectArr);
+var i,j:integer;
+    temp:vector;
+begin
+  for i:=1 to sysN do
+    begin
+      j:=2;
+      while (j<i) do
+        begin
+          temp:=mult(mult(dx[i],scal(dx[j],dx[i])),-1);
+          dx[i]:=plus(dx[i],temp);
+          inc(j);
+        end;
+      dx[i]:=norm(dx[i]);
+    end;
+end;
+
+procedure depth_cross(R,alf,bet:double; var x:vector; var dx:VectArr; var runaway:boolean);
+var j:integer;
+begin
+  for j:=1 to 100 do
+    begin
+      x:=f_Runge(x,R,alf,bet);
+      dx:=MatrEvol(x,dx,R,alf,bet);
+      if ((length(x)>VeryBigNumber) or (vectArr_length(dx)>VeryBigNumber)) then
+        begin
+          runaway:=true;
+          exit;
+        end;
+    end;
+end;
+
+procedure per_circle(var x:vector; var dx:VectArr; ReC,ImC:double; var S:double; var runaway:boolean);
+begin
+
+  depth_cross(R1,alf1,bet1,x,dx,runaway);
+  if runaway then exit;
+  x[1]:=ReD; x[2]:=ImD;
+  dx[1][1]:=0;dx[2][1]:=0;dx[3][1]:=0;dx[4][1]:=0;
+  dx[1][2]:=0;dx[2][2]:=0;dx[3][2]:=0;dx[4][2]:=0;
+  depth_cross(R2,alf2,bet2,x,dx,runaway);
+  if runaway then exit;
+  x[1]:=x[1]+ReC; x[2]:=x[2]+ImC;
+  x[3]:=0; x[4]:=0;
+  dx[1][3]:=0;dx[2][3]:=0;dx[3][3]:=0;dx[4][3]:=0;
+  dx[1][4]:=0;dx[2][4]:=0;dx[3][4]:=0;dx[4][4]:=0;
+S:=sqrt(sqr(dx[1][1]-dx[2][2])+sqr(dx[1][2]+dx[2][1]))
+  /(10e-10+sqrt(sqr(dx[1][1]+dx[2][2])+sqr(dx[2][1]-dx[1][2])))
+end;
+
+function anltDet(ReC,ImC:double):double;
+const
+  CicleNum=30;
+var i:integer;
+    S,an: double;
+    x:vector;
+    dx:vectArr;
+    runaway:boolean;
+label 333;
+begin
+
+  an:=0;
+  x:=NullVector();
+  for i:=0 to CicleNum do
+   begin
+      dx:=ElementaryPertuberation();
+      per_circle(x,dx,ReC,ImC,S,runaway);
+      if runaway then begin anltDet:=20000; exit; end;
+   if (i>CicleNum-20)and(S>an) then an:=S;
+  end;
+Result:=an;
+end;
+
+procedure TForm1.Button1Click(Sender: TObject);
+var
+    ReC,ImC,anlt:double;
+    clr:byte;
+    Ia,Jb:integer;
+label 333;
+begin
+  KDR:=TBitmap.Create;
+  KDR.Width:=PixSizeA;
+  KDR.Height:=PixSizeB;
+  with KDR.Canvas do
+    begin
+      ReC:=ReCmin;
+      repeat
+        ImC:=ImCmin;
+        repeat
+          Ia:=round(PixSizeA*(ReC-ReCmin)/(ReCmax-ReCmin));
+          Jb:=round(PixSizeB-PixSizeB*(ImC-ImCmin)/(ImCmax-ImCmin));
+          anlt:=anltDet(ReC,ImC);
+        if anlt>10000 then Pixels[Ia,Jb]:=Clyellow
+        else begin
+          Clr:=round((1.0-anlt)*255);
+          if Clr<0 then Clr:=0;
+          if Clr>255 then Clr:=255;
+          Pixels[Ia,Jb]:=RGB(Clr,Clr,Clr);
+        end;
+
+
+
+
+          form1.KDRImage.Canvas.CopyRect(Rect(0,0,PixSizeA,PixSizeB),KDR.canvas,Rect(0,0,PixSizeA,PixSizeB));
+          application.ProcessMessages;
+          ImC:=ImC+delImC;
+        until (ImC>ImCmax);
+        ReC:=ReC+delReC;
+      until (ReC>ReCmax);
+    end;
+    KDR.SaveToFile('LyapMap.bmp');
+end;
+
+procedure TForm1.FormClose(Sender: TObject; var Action: TCloseAction);
+begin
+   halt(1);
+end;
+
+end.
+
